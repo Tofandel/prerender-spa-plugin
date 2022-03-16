@@ -1,39 +1,32 @@
-const path = require('path')
-const CopyWebpackPlugin = require('copy-webpack-plugin')
-const PrerenderSPAPlugin = require('prerender-spa-plugin')
-const Renderer = PrerenderSPAPlugin.PuppeteerRenderer
+const path = require('path');
+const CopyWebpackPlugin = require('copy-webpack-plugin');
+const PrerenderSPAPlugin = require('prerender-spa-plugin');
+const HtmlWebpackPlugin = require("html-webpack-plugin");
 
 module.exports = {
-  entry: [ './src/main.js' ],
+  entry: ['./src/main.js'],
   output: {
     path: path.join(__dirname, 'dist'),
     filename: '[name].js'
   },
   plugins: [
-    new CopyWebpackPlugin([{
-      from: 'src/static',
-      to: '.'
-    }]),
+    new HtmlWebpackPlugin({
+      title: 'DEVELOPMENT prerender-spa-plugin',
+      template: 'src/static/index.html',
+      filename: 'index.html',
+      favicon: 'favicon.ico'
+    }),
     // == PRERENDER SPA PLUGIN == //
     new PrerenderSPAPlugin({
       // Index.html is in the root directory.
-      staticDir: path.join(__dirname, 'dist'),
-      routes: [ '/', '/about', '/some/deep/nested/route' ],
-      // Optional minification.
-      minify: {
-        collapseBooleanAttributes: true,
-        collapseWhitespace: true,
-        decodeEntities: true,
-        keepClosingSlash: true,
-        sortAttributes: true
-      },
+      routes: ['/', '/about', '/some/deep/nested/route'],
 
-      renderer: new Renderer({
+      rendererOptions: {
         inject: {
           foo: 'bar'
         },
         renderAfterDocumentEvent: 'render-event'
-      })
+      }
     })
   ]
-}
+};

@@ -1,8 +1,8 @@
-const MIN_BABEL_VERSION = 7
+const MIN_BABEL_VERSION = 7;
 
 module.exports = (api) => {
-  api.assertVersion(MIN_BABEL_VERSION)
-  api.cache(true)
+  api.assertVersion(MIN_BABEL_VERSION);
+  api.cache(true);
 
   return {
     presets: [
@@ -11,9 +11,16 @@ module.exports = (api) => {
         {
           targets: {
             node: '10.13.0'
-          }
+          },
+          modules: 'commonjs'
         }
       ]
+    ],
+    plugins: [
+      ['add-module-exports',
+        {
+          addDefaultProperty: true
+        }]
     ]
-  }
-}
+  };
+};

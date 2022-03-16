@@ -13,521 +13,503 @@ const { NoEmitOnErrorsPlugin, SourceMapDevToolPlugin, NamedModulesPlugin } = req
 const { NamedLazyChunksWebpackPlugin, BaseHrefWebpackPlugin, PostcssCliResources } = require('@angular/cli/plugins/webpack');
 const { CommonsChunkPlugin } = require('webpack').optimize;
 const { AngularCompilerPlugin } = require('@ngtools/webpack');
-const PrerenderSPAPlugin = require('prerender-spa-plugin')
-const Renderer = PrerenderSPAPlugin.PuppeteerRenderer
+const PrerenderSPAPlugin = require('prerender-spa-plugin');
+const Renderer = PrerenderSPAPlugin.PuppeteerRenderer;
 
 const nodeModules = path.join(process.cwd(), 'node_modules');
 const realNodeModules = fs.realpathSync(nodeModules);
 const genDirNodeModules = path.join(process.cwd(), 'src', '$$_gendir', 'node_modules');
-const entryPoints = ["inline","polyfills","sw-register","styles","vendor","main"];
-const hashFormat = {"chunk":"","extract":"","file":".[hash:20]","script":""};
-const baseHref = "";
-const deployUrl = "";
+const entryPoints = ['inline', 'polyfills', 'sw-register', 'styles', 'vendor', 'main'];
+const hashFormat = { chunk: '', extract: '', file: '.[hash:20]', script: '' };
+const baseHref = '';
+const deployUrl = '';
 const projectRoot = process.cwd();
 const maximumInlineSize = 10;
 const postcssPlugins = function (loader) {
-        return [
-            postcssImports({
-                resolve: (url, context) => {
-                    return new Promise((resolve, reject) => {
-                        let hadTilde = false;
-                        if (url && url.startsWith('~')) {
-                            url = url.substr(1);
-                            hadTilde = true;
-                        }
-                        loader.resolve(context, (hadTilde ? '' : './') + url, (err, result) => {
-                            if (err) {
-                                if (hadTilde) {
-                                    reject(err);
-                                    return;
-                                }
-                                loader.resolve(context, url, (err, result) => {
-                                    if (err) {
-                                        reject(err);
-                                    }
-                                    else {
-                                        resolve(result);
-                                    }
-                                });
-                            }
-                            else {
-                                resolve(result);
-                            }
-                        });
-                    });
-                },
-                load: (filename) => {
-                    return new Promise((resolve, reject) => {
-                        loader.fs.readFile(filename, (err, data) => {
-                            if (err) {
-                                reject(err);
-                                return;
-                            }
-                            const content = data.toString();
-                            resolve(content);
-                        });
-                    });
+  return [
+    postcssImports({
+      resolve: (url, context) => {
+        return new Promise((resolve, reject) => {
+          let hadTilde = false;
+          if (url && url.startsWith('~')) {
+            url = url.substr(1);
+            hadTilde = true;
+          }
+          loader.resolve(context, (hadTilde ? '' : './') + url, (err, result) => {
+            if (err) {
+              if (hadTilde) {
+                reject(err);
+                return;
+              }
+              loader.resolve(context, url, (err, result) => {
+                if (err) {
+                  reject(err);
+                } else {
+                  resolve(result);
                 }
-            }),
-            postcssUrl({
-                filter: ({ url }) => url.startsWith('~'),
-                url: ({ url }) => {
-                    const fullPath = path.join(projectRoot, 'node_modules', url.substr(1));
-                    return path.relative(loader.context, fullPath).replace(/\\/g, '/');
-                }
-            }),
-            postcssUrl([
-                {
-                    // Only convert root relative URLs, which CSS-Loader won't process into require().
-                    filter: ({ url }) => url.startsWith('/') && !url.startsWith('//'),
-                    url: ({ url }) => {
-                        if (deployUrl.match(/:\/\//) || deployUrl.startsWith('/')) {
-                            // If deployUrl is absolute or root relative, ignore baseHref & use deployUrl as is.
-                            return `${deployUrl.replace(/\/$/, '')}${url}`;
-                        }
-                        else if (baseHref.match(/:\/\//)) {
-                            // If baseHref contains a scheme, include it as is.
-                            return baseHref.replace(/\/$/, '') +
+              });
+            } else {
+              resolve(result);
+            }
+          });
+        });
+      },
+      load: (filename) => {
+        return new Promise((resolve, reject) => {
+          loader.fs.readFile(filename, (err, data) => {
+            if (err) {
+              reject(err);
+              return;
+            }
+            const content = data.toString();
+            resolve(content);
+          });
+        });
+      }
+    }),
+    postcssUrl({
+      filter: ({ url }) => url.startsWith('~'),
+      url: ({ url }) => {
+        const fullPath = path.join(projectRoot, 'node_modules', url.substr(1));
+        return path.relative(loader.context, fullPath).replace(/\\/g, '/');
+      }
+    }),
+    postcssUrl([
+      {
+        // Only convert root relative URLs, which CSS-Loader won't process into require().
+        filter: ({ url }) => url.startsWith('/') && !url.startsWith('//'),
+        url: ({ url }) => {
+          if (deployUrl.match(/:\/\//) || deployUrl.startsWith('/')) {
+            // If deployUrl is absolute or root relative, ignore baseHref & use deployUrl as is.
+            return `${deployUrl.replace(/\/$/, '')}${url}`;
+          } else if (baseHref.match(/:\/\//)) {
+            // If baseHref contains a scheme, include it as is.
+            return baseHref.replace(/\/$/, '') +
                                 `/${deployUrl}/${url}`.replace(/\/\/+/g, '/');
-                        }
-                        else {
-                            // Join together base-href, deploy-url and the original URL.
-                            // Also dedupe multiple slashes into single ones.
-                            return `/${baseHref}/${deployUrl}/${url}`.replace(/\/\/+/g, '/');
-                        }
-                    }
-                },
-                {
-                    // TODO: inline .cur if not supporting IE (use browserslist to check)
-                    filter: (asset) => {
-                        return maximumInlineSize > 0 && !asset.hash && !asset.absolutePath.endsWith('.cur');
-                    },
-                    url: 'inline',
-                    // NOTE: maxSize is in KB
-                    maxSize: maximumInlineSize,
-                    fallback: 'rebase',
-                },
-                { url: 'rebase' },
-            ]),
-            PostcssCliResources({
-                deployUrl: loader.loaders[loader.loaderIndex].options.ident == 'extracted' ? '' : deployUrl,
-                loader,
-                filename: `[name]${hashFormat.file}.[ext]`,
-            }),
-            autoprefixer({ grid: true }),
-        ];
-    };
-
-
-
+          } else {
+            // Join together base-href, deploy-url and the original URL.
+            // Also dedupe multiple slashes into single ones.
+            return `/${baseHref}/${deployUrl}/${url}`.replace(/\/\/+/g, '/');
+          }
+        }
+      },
+      {
+        // TODO: inline .cur if not supporting IE (use browserslist to check)
+        filter: (asset) => {
+          return maximumInlineSize > 0 && !asset.hash && !asset.absolutePath.endsWith('.cur');
+        },
+        url: 'inline',
+        // NOTE: maxSize is in KB
+        maxSize: maximumInlineSize,
+        fallback: 'rebase'
+      },
+      { url: 'rebase' }
+    ]),
+    PostcssCliResources({
+      deployUrl: loader.loaders[loader.loaderIndex].options.ident == 'extracted' ? '' : deployUrl,
+      loader,
+      filename: `[name]${hashFormat.file}.[ext]`
+    }),
+    autoprefixer({ grid: true })
+  ];
+};
 
 module.exports = {
-  "resolve": {
-    "extensions": [
-      ".ts",
-      ".js"
+  resolve: {
+    extensions: [
+      '.ts',
+      '.js'
     ],
-    "symlinks": true,
-    "modules": [
-      "./src",
-      "./node_modules"
+    symlinks: true,
+    modules: [
+      './src',
+      './node_modules'
     ],
-    "alias": rxPaths(),
-    "mainFields": [
-      "browser",
-      "module",
-      "main"
+    alias: rxPaths(),
+    mainFields: [
+      'browser',
+      'module',
+      'main'
     ]
   },
-  "resolveLoader": {
-    "modules": [
-      "./node_modules"
+  resolveLoader: {
+    modules: [
+      './node_modules'
     ],
-    "alias": rxPaths()
+    alias: rxPaths()
   },
-  "entry": {
-    "main": [
-      "./src/main.ts"
+  entry: {
+    main: [
+      './src/main.ts'
     ],
-    "polyfills": [
-      "./src/polyfills.ts"
+    polyfills: [
+      './src/polyfills.ts'
     ],
-    "styles": [
-      "./src/styles.css"
+    styles: [
+      './src/styles.css'
     ]
   },
-  "output": {
-    "path": path.join(process.cwd(), "dist"),
-    "filename": "[name].bundle.js",
-    "chunkFilename": "[id].chunk.js",
-    "crossOriginLoading": false
+  output: {
+    path: path.join(process.cwd(), 'dist'),
+    filename: '[name].bundle.js',
+    chunkFilename: '[id].chunk.js',
+    crossOriginLoading: false
   },
-  "module": {
-    "rules": [
+  module: {
+    rules: [
       {
-        "test": /\.html$/,
-        "loader": "raw-loader"
+        test: /\.html$/,
+        loader: 'raw-loader'
       },
       {
-        "test": /\.(eot|svg|cur)$/,
-        "loader": "file-loader",
-        "options": {
-          "name": "[name].[hash:20].[ext]",
-          "limit": 10000
+        test: /\.(eot|svg|cur)$/,
+        loader: 'file-loader',
+        options: {
+          name: '[name].[hash:20].[ext]',
+          limit: 10000
         }
       },
       {
-        "test": /\.(jpg|png|webp|gif|otf|ttf|woff|woff2|ani)$/,
-        "loader": "url-loader",
-        "options": {
-          "name": "[name].[hash:20].[ext]",
-          "limit": 10000
+        test: /\.(jpg|png|webp|gif|otf|ttf|woff|woff2|ani)$/,
+        loader: 'url-loader',
+        options: {
+          name: '[name].[hash:20].[ext]',
+          limit: 10000
         }
       },
       {
-        "exclude": [
-          path.join(process.cwd(), "src/styles.css")
+        exclude: [
+          path.join(process.cwd(), 'src/styles.css')
         ],
-        "test": /\.css$/,
-        "use": [
+        test: /\.css$/,
+        use: [
           {
-            "loader": "raw-loader"
+            loader: 'raw-loader'
           },
           {
-            "loader": "postcss-loader",
-            "options": {
-              "ident": "embedded",
-              "plugins": postcssPlugins,
-              "sourceMap": true
+            loader: 'postcss-loader',
+            options: {
+              ident: 'embedded',
+              plugins: postcssPlugins,
+              sourceMap: true
             }
           }
         ]
       },
       {
-        "exclude": [
-          path.join(process.cwd(), "src/styles.css")
+        exclude: [
+          path.join(process.cwd(), 'src/styles.css')
         ],
-        "test": /\.scss$|\.sass$/,
-        "use": [
+        test: /\.scss$|\.sass$/,
+        use: [
           {
-            "loader": "raw-loader"
+            loader: 'raw-loader'
           },
           {
-            "loader": "postcss-loader",
-            "options": {
-              "ident": "embedded",
-              "plugins": postcssPlugins,
-              "sourceMap": true
+            loader: 'postcss-loader',
+            options: {
+              ident: 'embedded',
+              plugins: postcssPlugins,
+              sourceMap: true
             }
           },
           {
-            "loader": "sass-loader",
-            "options": {
-              "sourceMap": true,
-              "precision": 8,
-              "includePaths": []
+            loader: 'sass-loader',
+            options: {
+              sourceMap: true,
+              precision: 8,
+              includePaths: []
             }
           }
         ]
       },
       {
-        "exclude": [
-          path.join(process.cwd(), "src/styles.css")
+        exclude: [
+          path.join(process.cwd(), 'src/styles.css')
         ],
-        "test": /\.less$/,
-        "use": [
+        test: /\.less$/,
+        use: [
           {
-            "loader": "raw-loader"
+            loader: 'raw-loader'
           },
           {
-            "loader": "postcss-loader",
-            "options": {
-              "ident": "embedded",
-              "plugins": postcssPlugins,
-              "sourceMap": true
+            loader: 'postcss-loader',
+            options: {
+              ident: 'embedded',
+              plugins: postcssPlugins,
+              sourceMap: true
             }
           },
           {
-            "loader": "less-loader",
-            "options": {
-              "sourceMap": true
+            loader: 'less-loader',
+            options: {
+              sourceMap: true
             }
           }
         ]
       },
       {
-        "exclude": [
-          path.join(process.cwd(), "src/styles.css")
+        exclude: [
+          path.join(process.cwd(), 'src/styles.css')
         ],
-        "test": /\.styl$/,
-        "use": [
+        test: /\.styl$/,
+        use: [
           {
-            "loader": "raw-loader"
+            loader: 'raw-loader'
           },
           {
-            "loader": "postcss-loader",
-            "options": {
-              "ident": "embedded",
-              "plugins": postcssPlugins,
-              "sourceMap": true
+            loader: 'postcss-loader',
+            options: {
+              ident: 'embedded',
+              plugins: postcssPlugins,
+              sourceMap: true
             }
           },
           {
-            "loader": "stylus-loader",
-            "options": {
-              "sourceMap": true,
-              "paths": []
+            loader: 'stylus-loader',
+            options: {
+              sourceMap: true,
+              paths: []
             }
           }
         ]
       },
       {
-        "include": [
-          path.join(process.cwd(), "src/styles.css")
+        include: [
+          path.join(process.cwd(), 'src/styles.css')
         ],
-        "test": /\.css$/,
-        "use": [
-          "style-loader",
+        test: /\.css$/,
+        use: [
+          'style-loader',
           {
-            "loader": "raw-loader"
+            loader: 'raw-loader'
           },
           {
-            "loader": "postcss-loader",
-            "options": {
-              "ident": "embedded",
-              "plugins": postcssPlugins,
-              "sourceMap": true
+            loader: 'postcss-loader',
+            options: {
+              ident: 'embedded',
+              plugins: postcssPlugins,
+              sourceMap: true
             }
           }
         ]
       },
       {
-        "include": [
-          path.join(process.cwd(), "src/styles.css")
+        include: [
+          path.join(process.cwd(), 'src/styles.css')
         ],
-        "test": /\.scss$|\.sass$/,
-        "use": [
-          "style-loader",
+        test: /\.scss$|\.sass$/,
+        use: [
+          'style-loader',
           {
-            "loader": "raw-loader"
+            loader: 'raw-loader'
           },
           {
-            "loader": "postcss-loader",
-            "options": {
-              "ident": "embedded",
-              "plugins": postcssPlugins,
-              "sourceMap": true
+            loader: 'postcss-loader',
+            options: {
+              ident: 'embedded',
+              plugins: postcssPlugins,
+              sourceMap: true
             }
           },
           {
-            "loader": "sass-loader",
-            "options": {
-              "sourceMap": true,
-              "precision": 8,
-              "includePaths": []
+            loader: 'sass-loader',
+            options: {
+              sourceMap: true,
+              precision: 8,
+              includePaths: []
             }
           }
         ]
       },
       {
-        "include": [
-          path.join(process.cwd(), "src/styles.css")
+        include: [
+          path.join(process.cwd(), 'src/styles.css')
         ],
-        "test": /\.less$/,
-        "use": [
-          "style-loader",
+        test: /\.less$/,
+        use: [
+          'style-loader',
           {
-            "loader": "raw-loader"
+            loader: 'raw-loader'
           },
           {
-            "loader": "postcss-loader",
-            "options": {
-              "ident": "embedded",
-              "plugins": postcssPlugins,
-              "sourceMap": true
+            loader: 'postcss-loader',
+            options: {
+              ident: 'embedded',
+              plugins: postcssPlugins,
+              sourceMap: true
             }
           },
           {
-            "loader": "less-loader",
-            "options": {
-              "sourceMap": true
+            loader: 'less-loader',
+            options: {
+              sourceMap: true
             }
           }
         ]
       },
       {
-        "include": [
-          path.join(process.cwd(), "src/styles.css")
+        include: [
+          path.join(process.cwd(), 'src/styles.css')
         ],
-        "test": /\.styl$/,
-        "use": [
-          "style-loader",
+        test: /\.styl$/,
+        use: [
+          'style-loader',
           {
-            "loader": "raw-loader"
+            loader: 'raw-loader'
           },
           {
-            "loader": "postcss-loader",
-            "options": {
-              "ident": "embedded",
-              "plugins": postcssPlugins,
-              "sourceMap": true
+            loader: 'postcss-loader',
+            options: {
+              ident: 'embedded',
+              plugins: postcssPlugins,
+              sourceMap: true
             }
           },
           {
-            "loader": "stylus-loader",
-            "options": {
-              "sourceMap": true,
-              "paths": []
+            loader: 'stylus-loader',
+            options: {
+              sourceMap: true,
+              paths: []
             }
           }
         ]
       },
       {
-        "test": /\.ts$/,
-        "loader": "@ngtools/webpack"
+        test: /\.ts$/,
+        loader: '@ngtools/webpack'
       }
     ]
   },
-  "plugins": [
+  plugins: [
     new NoEmitOnErrorsPlugin(),
     new CopyWebpackPlugin([
       {
-        "context": "src",
-        "to": "",
-        "from": {
-          "glob": "assets/**/*",
-          "dot": true
+        context: 'src',
+        to: '',
+        from: {
+          glob: 'assets/**/*',
+          dot: true
         }
       },
       {
-        "context": "src",
-        "to": "",
-        "from": {
-          "glob": "favicon.ico",
-          "dot": true
+        context: 'src',
+        to: '',
+        from: {
+          glob: 'favicon.ico',
+          dot: true
         }
       }
     ], {
-      "ignore": [
-        ".gitkeep",
-        "**/.DS_Store",
-        "**/Thumbs.db"
+      ignore: [
+        '.gitkeep',
+        '**/.DS_Store',
+        '**/Thumbs.db'
       ],
-      "debug": "warning"
+      debug: 'warning'
     }),
     new ProgressPlugin(),
     new CircularDependencyPlugin({
-      "exclude": /(\\|\/)node_modules(\\|\/)/,
-      "failOnError": false,
-      "onDetected": false,
-      "cwd": projectRoot
+      exclude: /(\\|\/)node_modules(\\|\/)/,
+      failOnError: false,
+      onDetected: false,
+      cwd: projectRoot
     }),
     new NamedLazyChunksWebpackPlugin(),
     new HtmlWebpackPlugin({
-      "template": "./src/index.html",
-      "filename": "./index.html",
-      "hash": false,
-      "inject": true,
-      "compile": true,
-      "favicon": false,
-      "minify": false,
-      "cache": true,
-      "showErrors": true,
-      "chunks": "all",
-      "excludeChunks": [],
-      "title": "Webpack App",
-      "xhtml": true,
-      "chunksSortMode": function sort(left, right) {
-        let leftIndex = entryPoints.indexOf(left.names[0]);
-        let rightindex = entryPoints.indexOf(right.names[0]);
+      template: './src/index.html',
+      filename: './index.html',
+      hash: false,
+      inject: true,
+      compile: true,
+      favicon: false,
+      minify: false,
+      cache: true,
+      showErrors: true,
+      chunks: 'all',
+      excludeChunks: [],
+      title: 'Webpack App',
+      xhtml: true,
+      chunksSortMode: function sort (left, right) {
+        const leftIndex = entryPoints.indexOf(left.names[0]);
+        const rightindex = entryPoints.indexOf(right.names[0]);
         if (leftIndex > rightindex) {
-            return 1;
+          return 1;
+        } else if (leftIndex < rightindex) {
+          return -1;
+        } else {
+          return 0;
         }
-        else if (leftIndex < rightindex) {
-            return -1;
-        }
-        else {
-            return 0;
-        }
-    }
+      }
     }),
     new BaseHrefWebpackPlugin({}),
     new CommonsChunkPlugin({
-      "name": [
-        "inline"
+      name: [
+        'inline'
       ],
-      "minChunks": null
+      minChunks: null
     }),
     new CommonsChunkPlugin({
-      "name": [
-        "vendor"
+      name: [
+        'vendor'
       ],
-      "minChunks": (module) => {
-                return module.resource
-                    && (module.resource.startsWith(nodeModules)
-                        || module.resource.startsWith(genDirNodeModules)
-                        || module.resource.startsWith(realNodeModules));
-            },
-      "chunks": [
-        "main"
+      minChunks: (module) => {
+        return module.resource &&
+                    (module.resource.startsWith(nodeModules) ||
+                        module.resource.startsWith(genDirNodeModules) ||
+                        module.resource.startsWith(realNodeModules));
+      },
+      chunks: [
+        'main'
       ]
     }),
     new SourceMapDevToolPlugin({
-      "filename": "[file].map[query]",
-      "moduleFilenameTemplate": "[resource-path]",
-      "fallbackModuleFilenameTemplate": "[resource-path]?[hash]",
-      "sourceRoot": "webpack:///"
+      filename: '[file].map[query]',
+      moduleFilenameTemplate: '[resource-path]',
+      fallbackModuleFilenameTemplate: '[resource-path]?[hash]',
+      sourceRoot: 'webpack:///'
     }),
     new CommonsChunkPlugin({
-      "name": [
-        "main"
+      name: [
+        'main'
       ],
-      "minChunks": 2,
-      "async": "common"
+      minChunks: 2,
+      async: 'common'
     }),
     new NamedModulesPlugin({}),
     new AngularCompilerPlugin({
-      "mainPath": "main.ts",
-      "platform": 0,
-      "hostReplacementPaths": {
-        "environments/environment.ts": "environments/environment.ts"
+      mainPath: 'main.ts',
+      platform: 0,
+      hostReplacementPaths: {
+        'environments/environment.ts': 'environments/environment.ts'
       },
-      "sourceMap": true,
-      "tsConfigPath": "src/tsconfig.app.json",
-      "skipCodeGeneration": true,
-      "compilerOptions": {}
+      sourceMap: true,
+      tsConfigPath: 'src/tsconfig.app.json',
+      skipCodeGeneration: true,
+      compilerOptions: {}
     }),
     // == PRERENDER SPA PLUGIN == //
     new PrerenderSPAPlugin({
       // Index.html is in the root directory.
-      staticDir: path.join(__dirname, 'dist'),
-      routes: [ '/' ],
-      // Optional minification.
-      minify: {
-        collapseBooleanAttributes: true,
-        collapseWhitespace: true,
-        decodeEntities: true,
-        keepClosingSlash: true,
-        sortAttributes: true
-      },
+      routes: ['/'],
 
       renderer: new Renderer({
         renderAfterTime: 500
       })
     })
   ],
-  "node": {
-    "fs": "empty",
-    "global": true,
-    "crypto": "empty",
-    "tls": "empty",
-    "net": "empty",
-    "process": true,
-    "module": false,
-    "clearImmediate": false,
-    "setImmediate": false
+  node: {
+    fs: 'empty',
+    global: true,
+    crypto: 'empty',
+    tls: 'empty',
+    net: 'empty',
+    process: true,
+    module: false,
+    clearImmediate: false,
+    setImmediate: false
   },
-  "devServer": {
-    "historyApiFallback": true
+  devServer: {
+    historyApiFallback: true
   }
 };

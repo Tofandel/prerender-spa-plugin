@@ -1,9 +1,8 @@
-var path = require('path')
-var webpack = require('webpack')
-var HtmlWebpackPlugin = require('html-webpack-plugin')
-const PrerenderSPAPlugin = require('prerender-spa-plugin')
-const Renderer = PrerenderSPAPlugin.PuppeteerRenderer
-const VueLoaderPlugin = require('vue-loader/lib/plugin')
+const path = require('path');
+const webpack = require('webpack');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
+const PrerenderSPAPlugin = require('prerender-spa-plugin');
+const VueLoaderPlugin = require('vue-loader/lib/plugin');
 
 module.exports = {
   mode: process.env.NODE_ENV,
@@ -42,20 +41,20 @@ module.exports = {
   },
   resolve: {
     alias: {
-      'vue$': 'vue/dist/vue.esm.js'
+      vue$: 'vue/dist/vue.esm.js'
     }
   },
   devServer: {
     historyApiFallback: true,
-    noInfo: false,
+    noInfo: false
   },
   devtool: '#eval-source-map',
   plugins: [
-    new VueLoaderPlugin(),
+    new VueLoaderPlugin()
   ]
-}
+};
 if (process.env.NODE_ENV === 'production') {
-  module.exports.devtool = '#source-map'
+  module.exports.devtool = '#source-map';
   module.exports.plugins = (module.exports.plugins || []).concat([
     new webpack.DefinePlugin({
       'process.env': {
@@ -69,7 +68,7 @@ if (process.env.NODE_ENV === 'production') {
     }),
     new PrerenderSPAPlugin({
       staticDir: path.join(__dirname, 'dist'),
-      routes: [ '/', '/about', '/contact' ],
+      routes: ['/', '/about', '/contact'],
 
       renderer: new Renderer({
         inject: {
@@ -79,7 +78,7 @@ if (process.env.NODE_ENV === 'production') {
         renderAfterDocumentEvent: 'render-event'
       })
     })
-  ])
+  ]);
 } else {
   // NODE_ENV === 'development'
   module.exports.plugins = (module.exports.plugins || []).concat([
@@ -92,6 +91,6 @@ if (process.env.NODE_ENV === 'production') {
       title: 'DEVELOPMENT prerender-spa-plugin',
       template: 'index.html',
       filename: 'index.html'
-    }),
-  ])
+    })
+  ]);
 }
