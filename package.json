@@ -1,6 +1,6 @@
 {
   "name": "prerender-spa-plugin-next",
-  "version": "4.1.7",
+  "version": "4.2.0",
   "description": "Flexible, framework-agnostic static site generation for sites and SPAs built with webpack.",
   "license": "MIT",
   "main": "dist/index.js",
