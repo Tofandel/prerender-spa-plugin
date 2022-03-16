@@ -6,7 +6,7 @@
   "main": "dist/cjs.js",
   "scripts": {
     "build": "NODE_ENV=production babel src -d dist --copy-files",
-    "prepare": "npm run build"
+    "prepublishOnly": "npm run build"
   },
   "files": [
     "dist"
@@ -52,22 +52,22 @@
   "dependencies": {
     "@prerenderer/prerenderer": "^0.7.2",
     "@prerenderer/renderer-puppeteer": "^0.2.0",
-    "schema-utils": "^3.0.0"
+    "schema-utils": "^4.0.0"
   },
   "peerDependencies": {
-    "html-webpack-plugin": "^5.3.1",
-    "webpack": "^5.24.4"
+    "html-webpack-plugin": "^5",
+    "webpack": "^5"
   },
   "devDependencies": {
-    "@babel/cli": "^7.12.1",
-    "@babel/core": "^7.12.3",
-    "@babel/eslint-parser": "^7.13.10",
-    "@babel/preset-env": "^7.12.11",
-    "eslint": "^7.21.0",
-    "eslint-config-standard": "^16.0.2",
-    "eslint-plugin-import": "^2.22.1",
+    "@babel/cli": "^7.17.6",
+    "@babel/core": "^7.17.7",
+    "@babel/eslint-parser": "^7.17.0",
+    "@babel/preset-env": "^7.16.11",
+    "eslint": "^8.11.0",
+    "eslint-config-standard": "^16.0.3",
+    "eslint-plugin-import": "^2.25.4",
     "eslint-plugin-node": "^11.1.0",
-    "eslint-plugin-promise": "^4.3.1",
+    "eslint-plugin-promise": "^6.0.0",
     "eslint-plugin-standard": "^5.0.0"
   },
   "engines": {
