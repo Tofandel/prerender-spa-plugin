@@ -1,5 +1,9 @@
 {
   "extends": [
-    "config:base"
-  ]
+    "config:base",
+    ":pinOnlyDevDependencies"
+  ],
+  "lockFileMaintenance": {
+    "enabled": true
+  }
 }
