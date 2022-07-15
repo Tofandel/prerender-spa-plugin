@@ -26,6 +26,9 @@ export default class PrerenderSPAPlugin {
     const indexPath = this.options.indexPath;
     const entryPath = this.options.entryPath || indexPath;
 
+    if (!(entryPath in compilation.assets)) {
+      return false;
+    }
     const PrerendererInstance = new Prerenderer({ staticDir: compiler.options.output.path, ...this.options, assets: compilation.assets });
     const prev = PrerendererInstance.modifyServer;
     PrerendererInstance.modifyServer = (server, stage) => {
@@ -61,8 +64,6 @@ export default class PrerenderSPAPlugin {
             }
           } else if (entryPath in compilation.assets) {
             res.send(compilation.assets[entryPath].source());
-          } else if ('index.html' in compilation.assets) {
-            res.send(compilation.assets['index.html'].source());
           } else {
             compilation.errors.push(new Error('[prerender-spa-plugin] ' + url + ' not found during prerender'));
             res.status(404);
