@@ -5,6 +5,10 @@
       "description": "The location of index.html",
       "type": "string"
     },
+    "entryPath": {
+      "description": "The entry index.html file to use",
+      "type": "string"
+    },
     "renderer": {
       "description": "A custom PuppeteerRenderer instance"
     },

@@ -24,6 +24,7 @@ export default class PrerenderSPAPlugin {
   async prerender (compiler, compilation) {
     const Prerenderer = require('@prerenderer/prerenderer');
     const indexPath = this.options.indexPath;
+    const entryPath = this.options.entryPath || indexPath;
 
     const PrerendererInstance = new Prerenderer({ staticDir: compiler.options.output.path, ...this.options, assets: compilation.assets });
     const prev = PrerendererInstance.modifyServer;
@@ -58,8 +59,8 @@ export default class PrerenderSPAPlugin {
                 compilation.errors.push(new Error('[prerender-spa-plugin] Failed to deliver ' + url + ', is the type of the file correct?'));
               }
             }
-          } else if (indexPath in compilation.assets) {
-            res.send(compilation.assets[indexPath].source());
+          } else if (entryPath in compilation.assets) {
+            res.send(compilation.assets[entryPath].source());
           } else if ('index.html' in compilation.assets) {
             res.send(compilation.assets['index.html'].source());
           } else {
