@@ -94,7 +94,7 @@ export default class PrerenderSPAPlugin {
         if (!processedRoute.outputPath) {
           processedRoute.outputPath = path.join(processedRoute.route, indexPath);
 
-          if (processedRoute.outputPath.startsWith('/')) {
+          if (processedRoute.outputPath.startsWith('/') || processedRoute.outputPath.startsWith('\\')) {
             processedRoute.outputPath = processedRoute.outputPath.slice(1);
           }
         }
