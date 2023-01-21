@@ -1,3 +1,6 @@
+> <h1>This package has been replaced with [@prerenderer/webpack-plugin](https://github.com/JoshTheDerf/prerenderer), and a fully updated prerendering suite</h1>
+>
+
 <h1 align="center">Prerender SPA Plugin</h1>
 <p align="center">
   <em>Flexible, framework-agnostic static site generation for sites and SPAs built with webpack.</em>
