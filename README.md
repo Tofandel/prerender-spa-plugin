@@ -1,4 +1,4 @@
-> <h1>This package has been replaced with [@prerenderer/webpack-plugin](https://github.com/JoshTheDerf/prerenderer), and a fully updated prerendering suite</h1>
+> <h1>This package has been replaced with <a href="https://github.com/JoshTheDerf/prerenderer">@prerenderer/webpack-plugin</a>, and a fully updated prerendering suite</h1>
 >
 
 <h1 align="center">Prerender SPA Plugin</h1>
